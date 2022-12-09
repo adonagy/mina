@@ -700,8 +700,7 @@ module For_tests = struct
           (Quickcheck_lib.gen_imperative_rose_tree
              (Quickcheck.Generator.return root)
              (Breadcrumb.For_tests.gen_non_deferred ~logger ~precomputed_values
-                ~verifier ~trust_system
-                ~accounts_with_secret_keys:root_ledger_accounts () ) )
+                ~verifier ~accounts_with_secret_keys:root_ledger_accounts () ) )
       in
       (root, branches, protocol_states)
     in

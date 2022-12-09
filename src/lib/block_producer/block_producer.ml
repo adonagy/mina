@@ -600,8 +600,8 @@ module Vrf_evaluation_state = struct
 end
 
 let run ~context:(module Context : CONTEXT) ~vrf_evaluator ~prover ~verifier
-    ~trust_system ~get_completed_work ~transaction_resource_pool
-    ~time_controller ~consensus_local_state ~coinbase_receiver ~frontier_reader
+    ~get_completed_work ~transaction_resource_pool ~time_controller
+    ~consensus_local_state ~coinbase_receiver ~frontier_reader
     ~transition_writer ~set_next_producer_timing ~log_block_creation
     ~block_reward_threshold ~block_produced_bvar =
   let open Context in
@@ -842,7 +842,7 @@ let run ~context:(module Context : CONTEXT) ~vrf_evaluator ~prover ~verifier
                       time ~logger ~time_controller
                         "Build breadcrumb on produced block" (fun () ->
                           Breadcrumb.build ~logger ~precomputed_values ~verifier
-                            ~trust_system ~parent:crumb ~transition
+                            ~parent:crumb ~transition
                             ~sender:None (* Consider skipping `All here *)
                             ~skip_staged_ledger_verification:`Proofs
                             ~transition_receipt_time () )
@@ -1210,7 +1210,7 @@ let run ~context:(module Context : CONTEXT) ~vrf_evaluator ~prover ~verifier
               ~f:(fun _ -> start ())
             : unit Block_time.Timeout.t ) )
 
-let run_precomputed ~context:(module Context : CONTEXT) ~verifier ~trust_system
+let run_precomputed ~context:(module Context : CONTEXT) ~verifier
     ~time_controller ~frontier_reader ~transition_writer ~precomputed_blocks =
   let open Context in
   let log_bootstrap_mode () =
@@ -1330,7 +1330,7 @@ let run_precomputed ~context:(module Context : CONTEXT) ~verifier ~trust_system
             time ~logger ~time_controller
               "Build breadcrumb on produced block (precomputed)" (fun () ->
                 Breadcrumb.build ~logger ~precomputed_values ~verifier
-                  ~trust_system ~parent:crumb ~transition ~sender:None
+                  ~parent:crumb ~transition ~sender:None
                   ~skip_staged_ledger_verification:`Proofs
                   ~transition_receipt_time ()
                 |> Deferred.Result.map_error ~f:(function

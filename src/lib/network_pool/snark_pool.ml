@@ -804,7 +804,7 @@ let%test_module "random set test" =
           Deferred.return (Error (`Other (Error.of_string "Invalid diff")))
 
     let config =
-      Mock_snark_pool.Resource_pool.make_config ~verifier ~trust_system
+      Mock_snark_pool.Resource_pool.make_config ~verifier
         ~disk_location:"/tmp/snark-pool"
 
     let gen ?length () =

@@ -96,10 +96,9 @@ let add_and_finalize ~logger ~frontier ~catchup_scheduler
   Catchup_scheduler.notify catchup_scheduler
     ~hash:(Mina_block.Validated.state_hash transition)
 
-let process_transition ~context:(module Context : CONTEXT) ~trust_system
-    ~verifier ~frontier ~catchup_scheduler ~processed_transition_writer
-    ~time_controller ~transition:cached_initially_validated_transition ~valid_cb
-    =
+let process_transition ~context:(module Context : CONTEXT) ~verifier ~frontier
+    ~catchup_scheduler ~processed_transition_writer ~time_controller
+    ~transition:cached_initially_validated_transition ~valid_cb =
   let open Context in
   let enveloped_initially_validated_transition =
     Cached.peek cached_initially_validated_transition
@@ -192,9 +191,8 @@ let process_transition ~context:(module Context : CONTEXT) ~trust_system
       cached_transform_deferred_result cached_initially_validated_transition
         ~transform_cached:(fun _ ->
           Transition_frontier.Breadcrumb.build ~logger ~precomputed_values
-            ~verifier ~trust_system ~transition_receipt_time
-            ~sender:(Some sender) ~parent:parent_breadcrumb
-            ~transition:mostly_validated_transition
+            ~verifier ~transition_receipt_time ~sender:(Some sender)
+            ~parent:parent_breadcrumb ~transition:mostly_validated_transition
             (* TODO: Can we skip here? *) () )
         ~transform_result:(function
           | Error (`Invalid_staged_ledger_hash error)
@@ -218,8 +216,7 @@ let process_transition ~context:(module Context : CONTEXT) ~trust_system
          ~processed_transition_writer ~only_if_present:false ~time_controller
          ~source:`Gossip breadcrumb ~precomputed_values ~valid_cb ))
 
-let run ~context:(module Context : CONTEXT) ~verifier ~trust_system
-    ~time_controller ~frontier
+let run ~context:(module Context : CONTEXT) ~verifier ~time_controller ~frontier
     ~(primary_transition_reader :
        ( [ `Block of
            ( Mina_block.initial_valid_block Envelope.Incoming.t
@@ -247,8 +244,8 @@ let run ~context:(module Context : CONTEXT) ~verifier ~trust_system
        Writer.t ) ~processed_transition_writer =
   let open Context in
   let catchup_scheduler =
-    Catchup_scheduler.create ~logger ~precomputed_values ~verifier ~trust_system
-      ~frontier ~time_controller ~catchup_job_writer ~catchup_breadcrumbs_writer
+    Catchup_scheduler.create ~logger ~precomputed_values ~verifier ~frontier
+      ~time_controller ~catchup_job_writer ~catchup_breadcrumbs_writer
       ~clean_up_signal:clean_up_catchup_scheduler
   in
   let add_and_finalize =
@@ -258,8 +255,8 @@ let run ~context:(module Context : CONTEXT) ~verifier ~trust_system
   let process_transition =
     process_transition
       ~context:(module Context)
-      ~trust_system ~verifier ~frontier ~catchup_scheduler
-      ~processed_transition_writer ~time_controller
+      ~verifier ~frontier ~catchup_scheduler ~processed_transition_writer
+      ~time_controller
   in
   O1trace.background_thread "process_blocks" (fun () ->
       Reader.Merge.iter
@@ -441,9 +438,8 @@ let%test_module "Transition_handler.Processor tests" =
                 let cache = Unprocessed_transition_cache.create ~logger in
                 run
                   ~context:(module Context)
-                  ~time_controller ~verifier ~trust_system
-                  ~clean_up_catchup_scheduler ~frontier
-                  ~primary_transition_reader:valid_transition_reader
+                  ~time_controller ~verifier ~clean_up_catchup_scheduler
+                  ~frontier ~primary_transition_reader:valid_transition_reader
                   ~producer_transition_reader ~catchup_job_writer
                   ~catchup_breadcrumbs_reader ~catchup_breadcrumbs_writer
                   ~processed_transition_writer ;

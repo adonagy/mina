@@ -64,8 +64,8 @@ type t =
       Capped_supervisor.t
   }
 
-let create ~logger ~precomputed_values ~verifier ~trust_system ~frontier
-    ~time_controller ~catchup_job_writer
+let create ~logger ~precomputed_values ~verifier ~frontier ~time_controller
+    ~catchup_job_writer
     ~(catchup_breadcrumbs_writer :
        ( ( (Transition_frontier.Breadcrumb.t, State_hash.t) Cached.t
          * Validation_callback.t option )
@@ -102,7 +102,7 @@ let create ~logger ~precomputed_values ~verifier ~trust_system ~frontier
               (Logger.extend logger
                  [ ("catchup_scheduler", `String "Called from catchup scheduler")
                  ] )
-            ~precomputed_values ~verifier ~trust_system ~frontier ~initial_hash
+            ~precomputed_values ~verifier ~frontier ~initial_hash
             transition_branches
         with
         | Ok trees_of_breadcrumbs ->
@@ -324,7 +324,7 @@ let%test_module "Transition_handler.Catchup_scheduler tests" =
 
     let max_length = 10
 
-    let create = create ~logger ~trust_system ~time_controller
+    let create = create ~logger ~time_controller
 
     let verifier =
       Async.Thread_safe.block_on_async_exn (fun () ->

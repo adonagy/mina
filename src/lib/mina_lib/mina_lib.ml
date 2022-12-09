@@ -1309,7 +1309,6 @@ let start t =
     Block_producer.run ~context:(context t.config)
       ~vrf_evaluator:t.processes.vrf_evaluator ~verifier:t.processes.verifier
       ~set_next_producer_timing ~prover:t.processes.prover
-      ~trust_system:t.config.trust_system
       ~transaction_resource_pool:
         (Network_pool.Transaction_pool.resource_pool
            t.components.transaction_pool )
@@ -1354,8 +1353,7 @@ let start t =
 let start_with_precomputed_blocks t blocks =
   let%bind () =
     Block_producer.run_precomputed ~context:(context t.config)
-      ~verifier:t.processes.verifier ~trust_system:t.config.trust_system
-      ~time_controller:t.config.time_controller
+      ~verifier:t.processes.verifier ~time_controller:t.config.time_controller
       ~frontier_reader:t.components.transition_frontier
       ~transition_writer:t.pipes.producer_transition_writer
       ~precomputed_blocks:blocks
@@ -1675,7 +1673,6 @@ let create ?wallets (config : Config.t) =
           in
           let txn_pool_config =
             Network_pool.Transaction_pool.Resource_pool.make_config ~verifier
-              ~trust_system:config.trust_system
               ~pool_max_size:
                 config.precomputed_values.genesis_constants.txpool_max_size
               ~genesis_constants:config.precomputed_values.genesis_constants
@@ -1709,7 +1706,6 @@ let create ?wallets (config : Config.t) =
           in
           let snark_pool_config =
             Network_pool.Snark_pool.Resource_pool.make_config ~verifier
-              ~trust_system:config.trust_system
               ~disk_location:config.snark_pool_disk_location
           in
           let%bind snark_pool, snark_remote_sink, snark_local_sink =
@@ -1786,7 +1782,6 @@ let create ?wallets (config : Config.t) =
                         Sync_handler.answer_query ~frontier ledger_hash
                           (Envelope.Incoming.map ~f:Tuple2.get2 query_env)
                           ~logger:config.logger
-                          ~trust_system:config.trust_system
                         |> Deferred.map
                            (* begin error string prefix so we can pattern-match *)
                              ~f:
@@ -1895,8 +1890,8 @@ let create ?wallets (config : Config.t) =
           let valid_transitions, initialization_finish_signal =
             Transition_router.run
               ~context:(module Context)
-              ~trust_system:config.trust_system ~verifier ~network:net
-              ~is_seed:config.is_seed ~is_demo_mode:config.demo_mode
+              ~verifier ~network:net ~is_seed:config.is_seed
+              ~is_demo_mode:config.demo_mode
               ~time_controller:config.time_controller
               ~consensus_local_state:config.consensus_local_state
               ~persistent_root_location:config.persistent_root_location

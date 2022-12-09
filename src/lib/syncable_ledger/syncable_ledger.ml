@@ -235,7 +235,7 @@ end = struct
         -> logger:Logger.t
         -> trust_system:Trust_system.t
         -> t =
-     fun mt f ~logger ~trust_system -> { mt; f; logger; trust_system }
+     fun mt f ~logger -> { mt; f; logger; trust_system }
 
     let answer_query :
         t -> query Envelope.Incoming.t -> answer option Deferred.t =
@@ -732,7 +732,7 @@ end = struct
     ignore (new_goal t rh ~data ~equal : [ `New | `Repeat | `Update_data ]) ;
     wait_until_valid t rh
 
-  let create mt ~logger ~trust_system =
+  let create mt ~logger =
     let qr, qw = Linear_pipe.create () in
     let ar, aw = Linear_pipe.create () in
     let t =

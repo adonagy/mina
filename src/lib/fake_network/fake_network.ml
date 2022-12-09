@@ -108,14 +108,8 @@ let setup (type n) ~context:(module Context : CONTEXT)
     Gossip_net.Fake.create_network (Vect.to_list peers)
   in
   let config peer consensus_local_state =
-    let trust_system = Trust_system.null () in
     let open Mina_networking.Config in
-    don't_wait_for
-      (Pipe_lib.Strict_pipe.Reader.iter
-         (Trust_system.upcall_pipe trust_system)
-         ~f:(const Deferred.unit) ) ;
     { logger
-    ; trust_system
     ; time_controller
     ; consensus_local_state
     ; is_seed = Vect.is_empty peers
@@ -228,7 +222,7 @@ module Generator = struct
               let ledger_hash, _ = Envelope.Incoming.data query_env in
               Sync_handler.answer_query ~frontier ledger_hash
                 (Envelope.Incoming.map ~f:Tuple2.get2 query_env)
-                ~logger:(Logger.create ()) ~trust_system:(Trust_system.null ())
+                ~logger:(Logger.create ())
               |> Deferred.map
                  (* begin error string prefix so we can pattern-match *)
                    ~f:

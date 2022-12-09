@@ -1691,7 +1691,7 @@ let%test_module _ =
       in
       let trust_system = Trust_system.null () in
       let config =
-        Test.Resource_pool.make_config ~trust_system ~pool_max_size ~verifier
+        Test.Resource_pool.make_config ~pool_max_size ~verifier
           ~genesis_constants:Genesis_constants.compiled
       in
       let pool_, _, _ =

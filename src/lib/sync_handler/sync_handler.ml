@@ -91,15 +91,15 @@ module Make (Inputs : Inputs_intf) :
       -> logger:Logger.t
       -> trust_system:Trust_system.t
       -> Sync_ledger.Answer.t Option.t Deferred.t =
-   fun ~frontier hash query ~logger ~trust_system ->
+   fun ~frontier hash query ~logger ->
     match get_ledger_by_hash ~frontier hash with
     | None ->
         return None
     | Some ledger ->
         let responder =
           Sync_ledger.Any_ledger.Responder.create ledger ignore ~logger
-            ~trust_system
         in
+
         Sync_ledger.Any_ledger.Responder.answer_query responder query
 
   let get_staged_ledger_aux_and_pending_coinbases_at_hash ~frontier state_hash =
@@ -292,7 +292,7 @@ let%test_module "Sync_handler" =
               in
               let desired_root = Ledger.merkle_root source_ledger in
               let sync_ledger =
-                Sync_ledger.Mask.create dest_ledger ~logger ~trust_system
+                Sync_ledger.Mask.create dest_ledger ~logger 
               in
               let query_reader = Sync_ledger.Mask.query_reader sync_ledger in
               let answer_writer = Sync_ledger.Mask.answer_writer sync_ledger in
@@ -342,7 +342,7 @@ let%test_module "Sync_handler" =
           let%bind () =
             build_frontier_randomly frontier
               ~gen_root_breadcrumb_builder:
-                (gen_linear_breadcrumbs ~logger ~pids ~trust_system
+                (gen_linear_breadcrumbs ~logger ~pids 
                    ~size:num_breadcrumbs
                    ~accounts_with_secret_keys:Test_genesis_ledger.accounts)
           in

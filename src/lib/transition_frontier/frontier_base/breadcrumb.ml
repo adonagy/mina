@@ -66,7 +66,7 @@ T.
 include Allocation_functor.Make.Sexp (T)
 
 let build ?skip_staged_ledger_verification ~logger ~precomputed_values ~verifier
-    ~trust_system ~parent
+    ~parent
     ~transition:(transition_with_validation : Mina_block.almost_valid_block)
     ~sender ~transition_receipt_time () =
   O1trace.thread "build_breadcrumb" (fun () ->
@@ -443,8 +443,7 @@ module For_tests = struct
       in
       let transition_receipt_time = Some (Time.now ()) in
       match%map
-        build ~logger ~precomputed_values ~trust_system ~verifier
-          ~parent:parent_breadcrumb
+        build ~logger ~precomputed_values ~verifier ~parent:parent_breadcrumb
           ~transition:
             ( next_block |> Mina_block.Validated.remember
             |> Validation.reset_staged_ledger_diff_validation )
@@ -494,8 +493,8 @@ module For_tests = struct
       List.rev ls
 
   let build_fail ?skip_staged_ledger_verification:_ ~logger:_
-      ~precomputed_values:_ ~verifier:_ ~trust_system:_ ~parent:_ ~transition:_
-      ~sender:_ ~transition_receipt_time:_ () :
+      ~precomputed_values:_ ~verifier:_ ~parent:_ ~transition:_ ~sender:_
+      ~transition_receipt_time:_ () :
       ( t
       , [> `Fatal_error of exn
         | `Invalid_staged_ledger_diff of Core_kernel.Error.t

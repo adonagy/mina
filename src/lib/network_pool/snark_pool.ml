@@ -150,10 +150,7 @@ struct
 
       module Config = struct
         type t =
-          { trust_system : (Trust_system.t[@sexp.opaque])
-          ; verifier : (Verifier.t[@sexp.opaque])
-          ; disk_location : string
-          }
+          { verifier : (Verifier.t[@sexp.opaque]); disk_location : string }
         [@@deriving sexp, make]
       end
 
@@ -458,10 +455,6 @@ struct
         let { Priced_proof.proof = proofs; fee = { prover; fee } } =
           priced_proof
         in
-        let trust_record =
-          Trust_system.record_envelope_sender t.config.trust_system t.logger
-            sender
-        in
         let is_local = Envelope.Sender.(equal Local sender) in
         let metadata =
           [ ("prover", Signature_lib.Public_key.Compressed.to_yojson prover)
@@ -478,11 +471,9 @@ struct
           in
           [%log' error t.logger] ~metadata
             "Error verifying transaction snark from $sender: $error" ;
-          if punish && not is_local then
-            trust_record
-              ( Trust_system.Actions.Sent_invalid_proof
-              , Some ("Error verifying transaction snark: $error", metadata) )
-          else Deferred.return ()
+          if punish && not is_local then (* TODO: ban sender *)
+            Deferred.unit
+          else Deferred.unit
         in
         let message = Mina_base.Sok_message.create ~fee ~prover in
         let verify proofs =
@@ -755,8 +746,6 @@ open Inline_test_quiet_logs
 let%test_module "random set test" =
   ( module struct
     open Mina_base
-
-    let trust_system = Mocks.trust_system
 
     let precomputed_values = Lazy.force Precomputed_values.for_unit_tests
 

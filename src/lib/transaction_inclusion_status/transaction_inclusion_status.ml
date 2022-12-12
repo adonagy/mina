@@ -83,8 +83,6 @@ let%test_module "transaction_status" =
 
     module Genesis_ledger = (val precomputed_values.genesis_ledger)
 
-    let trust_system = Trust_system.null ()
-
     let pool_max_size = precomputed_values.genesis_constants.txpool_max_size
 
     let verifier =

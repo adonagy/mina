@@ -8,8 +8,6 @@ open Inline_test_quiet_logs
 
 let%test_module "network pool test" =
   ( module struct
-    let trust_system = Mocks.trust_system
-
     let logger = Logger.null ()
 
     let precomputed_values = Lazy.force Precomputed_values.for_unit_tests

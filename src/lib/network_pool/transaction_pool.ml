@@ -264,8 +264,7 @@ struct
 
     module Config = struct
       type t =
-        { trust_system : (Trust_system.t[@sexp.opaque])
-        ; pool_max_size : int
+        { pool_max_size : int
               (* note this value needs to be mostly the same across gossipping nodes, so
                  nodes with larger pools don't send nodes with smaller pools lots of
                  low fee transactions the smaller-pooled nodes consider useless and get
@@ -922,10 +921,6 @@ struct
 
       let log_and_punish ?(punish = true) t d e =
         let sender = Envelope.Incoming.sender d in
-        let trust_record =
-          Trust_system.record_envelope_sender t.config.trust_system t.logger
-            sender
-        in
         let is_local = Envelope.Sender.(equal Local sender) in
         let metadata =
           [ ("error", Error_json.error_to_yojson e)
@@ -936,10 +931,8 @@ struct
           "Error verifying transaction pool diff from $sender: $error" ;
         if punish && not is_local then
           (* TODO: Make this error more specific (could also be a bad signature). *)
-          trust_record
-            ( Trust_system.Actions.Sent_invalid_proof
-            , Some ("Error verifying transaction pool diff: $error", metadata)
-            )
+          (* TODO: ban *)
+          Deferred.return ()
         else Deferred.return ()
 
       let of_indexed_pool_error e =
@@ -1085,15 +1078,8 @@ struct
             [%log' error t.logger]
               "Batch verification failed when adding from gossip"
               ~metadata:[ ("error", `String msg) ] ;
-            let%map.Deferred () =
-              Trust_system.record_envelope_sender t.config.trust_system t.logger
-                (Envelope.Incoming.sender diff)
-                ( Trust_system.Actions.Sent_useless_gossip
-                , Some
-                    ( "rejecting command because had invalid signature or proof"
-                    , [] ) )
-            in
-            Error Error.(tag (of_string msg) ~tag:"Verification_failed")
+            Deferred.return
+              (Error Error.(tag (of_string msg) ~tag:"Verification_failed"))
         | Ok (Ok commands) ->
             (* TODO: avoid duplicate hashing (#11706) *)
             O1trace.sync_thread "hashing_transactions_after_verification"
@@ -1689,7 +1675,6 @@ let%test_module _ =
       let frontier_pipe_r, frontier_pipe_w =
         Broadcast_pipe.create @@ Some frontier
       in
-      let trust_system = Trust_system.null () in
       let config =
         Test.Resource_pool.make_config ~pool_max_size ~verifier
           ~genesis_constants:Genesis_constants.compiled

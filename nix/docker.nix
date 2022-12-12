@@ -1,6 +1,6 @@
-{ lib, dockerTools, buildEnv, ocamlPackages_mina, runCommand, dumb-init
-, coreutils, bashInteractive, python3, libp2p_helper, procps, postgresql, curl
-, jq, stdenv, rsync, bash, gnutar, gzip }:
+{ lib, dockerTools, buildEnv, ocamlPackages_mina, linkFarm, runCommand
+, dumb-init, tzdata, coreutils, bashInteractive, python3, libp2p_helper, procps
+, postgresql, curl, jq, stdenv, rsync, bash, gnutar, gzip }:
 let
   mkdir = name:
     runCommand "mkdir-${name}" { } "mkdir -p $out${lib.escapeShellArg name}";
@@ -45,28 +45,35 @@ let
     '';
   };
 
-  mkFullImage = name: packages: dockerTools.streamLayeredImage {
-    name = "${name}-full";
-    contents = [
-      dumb-init
-      coreutils
-      bashInteractive
-      python3
-      libp2p_helper
-      procps
-      curl
-      jq
-    ] ++ packages;
-    extraCommands = ''
-      mkdir root tmp
-      chmod 777 tmp
-    '';
-    config = {
-      env = [ "MINA_TIME_OFFSET=0" ];
-      WorkingDir = "/root";
-      cmd = [ "/bin/dumb-init" "/entrypoint.sh" ];
+  localtime = linkFarm "localtime" [{
+    name = "etc/localtime";
+    path = "${tzdata}/share/zoneinfo/UTC";
+  }];
+
+  mkFullImage = name: packages:
+    dockerTools.streamLayeredImage {
+      name = "${name}-full";
+      contents = [
+        dumb-init
+        coreutils
+        bashInteractive
+        python3
+        libp2p_helper
+        procps
+        curl
+        jq
+        localtime
+      ] ++ packages;
+      extraCommands = ''
+        mkdir root tmp
+        chmod 777 tmp
+      '';
+      config = {
+        env = [ "MINA_TIME_OFFSET=0" ];
+        WorkingDir = "/root";
+        cmd = [ "/bin/dumb-init" "/entrypoint.sh" ];
+      };
     };
-  };
 
 in {
   mina-image-slim = dockerTools.streamLayeredImage {
@@ -81,11 +88,12 @@ in {
     mina.mainnet
     mina.genesis
   ]);
-  mina-archive-image-full = mkFullImage "mina-archive" (with ocamlPackages_mina; [
-    mina-archive-scripts
-    gnutar
-    gzip
+  mina-archive-image-full = mkFullImage "mina-archive"
+    (with ocamlPackages_mina; [
+      mina-archive-scripts
+      gnutar
+      gzip
 
-    mina.archive
-  ]);
+      mina.archive
+    ]);
 }

@@ -460,7 +460,7 @@ module For_tests = struct
       | Error (`Invalid_staged_ledger_hash e) ->
           failwithf !"Invalid staged ledger hash: %{sexp:Error.t}" e ()
 
-  let gen_non_deferred ?logger ~precomputed_values ~verifier ?trust_system
+  let gen_non_deferred ?logger ~precomputed_values ~verifier
       ~accounts_with_secret_keys () =
     let open Quickcheck.Generator.Let_syntax in
     let%map make_deferred =
@@ -468,8 +468,8 @@ module For_tests = struct
     in
     fun x -> Async.Thread_safe.block_on_async_exn (fun () -> make_deferred x)
 
-  let gen_seq ?logger ~precomputed_values ~verifier ?trust_system
-      ~accounts_with_secret_keys n =
+  let gen_seq ?logger ~precomputed_values ~verifier ~accounts_with_secret_keys n
+      =
     let open Quickcheck.Generator.Let_syntax in
     let gen_list =
       List.gen_with_length n

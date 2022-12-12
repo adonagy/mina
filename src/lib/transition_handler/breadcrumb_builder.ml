@@ -139,15 +139,18 @@ let build_subtrees_of_breadcrumbs ~logger ~precomputed_values ~verifier
                                   Set.add inet_addrs peer )
                         in
                         let ip_addresses = Set.to_list ip_address_set in
-                        let trust_system_record_invalid msg error =
-                          let%map () =
-                            Deferred.List.iter ip_addresses ~f:(fun ip_addr ->
-                                Trust_system.record trust_system logger ip_addr
-                                  ( Trust_system.Actions
-                                    .Gossiped_invalid_transition
-                                  , Some (msg, []) ) )
-                          in
-                          Error error
+                        let trust_system_record_invalid staged_ledger_error
+                            error =
+                          List.iter ip_addresses ~f:(fun ip_addr ->
+                              (* TODO: ban *)
+                              [%log error] "Gossiped invalid transition"
+                                ~metadata:
+                                  [ ("address", Peer.to_yojson ip_addr)
+                                  ; ( "staged_ledger_error"
+                                    , `String staged_ledger_error )
+                                  ; ("error", Error_json.error_to_yojson error)
+                                  ] ) ;
+                          return @@ Error error
                         in
                         match err with
                         | `Invalid_staged_ledger_hash error ->

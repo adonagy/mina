@@ -136,18 +136,15 @@ let process_transition ~context:(module Context : CONTEXT) ~verifier ~frontier
       | Ok t ->
           return (Ok t)
       | Error `Not_selected_over_frontier_root ->
-          let%map () =
-            Trust_system.record_envelope_sender trust_system logger sender
-              ( Trust_system.Actions.Gossiped_invalid_transition
-              , Some
-                  ( "The transition with hash $state_hash was not selected \
-                     over the transition frontier root"
-                  , metadata ) )
-          in
+          (* TODO: ban *)
+          [%log error]
+            "The transition with hash $state_hash was not selected over the \
+             transition frontier root"
+            ~metadata ;
           let (_ : Mina_block.initial_valid_block Envelope.Incoming.t) =
             Cached.invalidate_with_failure cached_initially_validated_transition
           in
-          Error ()
+          return @@ Error ()
       | Error `Already_in_frontier ->
           [%log warn] ~metadata
             "Refusing to process the transition with hash $state_hash because \
@@ -375,8 +372,6 @@ let%test_module "Transition_handler.Processor tests" =
     let constraint_constants = precomputed_values.constraint_constants
 
     let time_controller = Block_time.Controller.basic ~logger
-
-    let trust_system = Trust_system.null ()
 
     let verifier =
       Async.Thread_safe.block_on_async_exn (fun () ->

@@ -139,8 +139,7 @@ let build_subtrees_of_breadcrumbs ~logger ~precomputed_values ~verifier
                                   Set.add inet_addrs peer )
                         in
                         let ip_addresses = Set.to_list ip_address_set in
-                        let trust_system_record_invalid staged_ledger_error
-                            error =
+                        let log_invalid staged_ledger_error error =
                           List.iter ip_addresses ~f:(fun ip_addr ->
                               (* TODO: ban *)
                               [%log error] "Gossiped invalid transition"
@@ -154,11 +153,9 @@ let build_subtrees_of_breadcrumbs ~logger ~precomputed_values ~verifier
                         in
                         match err with
                         | `Invalid_staged_ledger_hash error ->
-                            trust_system_record_invalid
-                              "invalid staged ledger hash" error
+                            log_invalid "invalid staged ledger hash" error
                         | `Invalid_staged_ledger_diff error ->
-                            trust_system_record_invalid
-                              "invalid staged ledger diff" error
+                            log_invalid "invalid staged ledger diff" error
                         | `Fatal_error exn ->
                             Deferred.return (Or_error.of_exn exn) ) ) )
             |> Cached.sequence_deferred

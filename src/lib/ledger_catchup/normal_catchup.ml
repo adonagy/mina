@@ -102,17 +102,20 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier
   | Error (`Verifier_error error) ->
       [%log warn]
         ~metadata:[ ("error", Error_json.error_to_yojson error) ]
-        "verifier threw an error while verifying transiton queried during \
+        "verifier threw an error while verifying transition queried during \
          ledger catchup: $error" ;
       Deferred.Or_error.fail (Error.tag ~tag:"verifier threw an error" error)
   | Error `Invalid_proof ->
-      [%log error] "Invalid proof" ;
+      [%log error] "Invalid proof"
+        ~metadata:[ ("sender", Envelope.Sender.to_yojson sender) ] ;
       return @@ Error (Error.of_string "Invalid proof")
   | Error `Invalid_genesis_protocol_state ->
-      [%log error] "Invalid genesis protocol state" ;
+      [%log error] "Invalid genesis protocol state"
+        ~metadata:[ ("sender", Envelope.Sender.to_yojson sender) ] ;
       return @@ Error (Error.of_string "invalid genesis protocol state")
   | Error `Invalid_delta_block_chain_proof ->
-      [%log error] "Invalid delta transition chain witness" ;
+      [%log error] "Invalid delta transition chain witness"
+        ~metadata:[ ("sender", Envelope.Sender.to_yojson sender) ] ;
       return @@ Error (Error.of_string "Invalid delta transition chain witness")
   | Error `Invalid_protocol_version ->
       let transition = Mina_block.Validation.block transition_with_hash in
@@ -130,6 +133,7 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier
                     (Mina_block.header transition)
                 |> Option.value_map ~default:"<None>"
                      ~f:Protocol_version.to_string ) )
+          ; ("sender", Envelope.Sender.to_yojson sender)
           ] ;
       return @@ Error (Error.of_string "invalid protocol version")
   | Error `Mismatched_protocol_version ->
@@ -145,6 +149,7 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier
                 |> Protocol_version.to_string ) )
           ; ( "daemon_current_protocol_version"
             , `String Protocol_version.(get_current () |> to_string) )
+          ; ("sender", Envelope.Sender.to_yojson sender)
           ] ;
       return @@ Error (Error.of_string "mismatched protocol version")
   | Error `Disconnected ->
@@ -427,14 +432,11 @@ let download_transitions ~target_hash ~logger ~network ~preferred_peer
                   if not @@ verify_against_hashes hashed_transitions hashes then (
                     let error_msg =
                       sprintf
-                        !"Peer %{sexp:Network_peer.Peer.t} returned a list \
-                          that is different from the one that is requested."
+                        !"Peer %{sexp:Peer.t} returned a list of hashes \
+                          different from the one requested"
                         peer
                     in
-                    Trust_system.(
-                      record trust_system logger peer
-                        Actions.(Violated_protocol, Some (error_msg, [])))
-                    |> don't_wait_for ;
+                    [%log error] "%s" error_msg ;
                     Deferred.Or_error.error_string error_msg )
                   else
                     Deferred.Or_error.return

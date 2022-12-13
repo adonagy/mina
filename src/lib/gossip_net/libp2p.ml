@@ -108,6 +108,7 @@ let validate_gossip_base ~fn my_peer_id envelope validation_callback =
 
 let on_gossip_decode_failure (config : Config.t) envelope (err : Error.t) =
   let peer = Envelope.Incoming.sender envelope |> Envelope.Sender.remote_exn in
+  (* TODO: ban *)
   [%log' error config.logger] "Failed to decode gossip message"
     ~metadata:
       [ ("sender_peer_id", `String peer.peer_id)
@@ -125,7 +126,6 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
       ; net2 : Mina_net2.t Deferred.t ref
       ; first_peer_ivar : unit Ivar.t
       ; high_connectivity_ivar : unit Ivar.t
-      ; ban_reader : Intf.ban_notification Linear_pipe.Reader.t
       ; publish_functions : publish_functions ref
       ; restart_helper : unit -> unit
       }
@@ -362,7 +362,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
                           match%map Mina_net2.reset_stream net2 stream with
                           | Error e ->
                               [%log' warn config.logger]
-                                "Failed to reset stream (this means it was \
+                                "failed to reset stream (this means it was \
                                  probably closed successfully): $error"
                                 ~metadata:
                                   [ ("error", Error_json.error_to_yojson e) ]
@@ -525,7 +525,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
              (`Capacity 0, `Overflow (Strict_pipe.Drop_head ignore)) )
       in
       let added_seeds = Peer.Hash_set.create () in
-      let%bind () =
+      let%map () =
         let rec on_libp2p_create res =
           net2_ref :=
             Deferred.map res ~f:(fun (n, _) ->
@@ -581,17 +581,6 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
                let%bind () = Mina_net2.shutdown n in
                restart_libp2p () ; !net2_ref >>| ignore ) ) ;
         start_libp2p ()
-      in
-      let ban_configuration =
-        ref { Mina_net2.banned_peers = []; trusted_peers = []; isolate = false }
-      in
-      let send_heartbeat peer =
-        O1trace.thread "execute_heartbeat" (fun () ->
-            let n_def = !net2_ref in
-            if Deferred.is_determined n_def then
-              let%map net2 = n_def in
-              Mina_net2.send_heartbeat net2 peer.Network_peer.Peer.peer_id
-            else Deferred.unit )
       in
       let t =
         { config
@@ -694,7 +683,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
                   (fun exn ->
                     [%log' error t.config.logger] "Handshake error: $exn"
                       ~metadata:[ ("exn", `String (Exn.to_string exn)) ] ;
-                    return @@ Or_error.error_string "handshake error" ) ) )
+                    Deferred.Or_error.error_string "handshake error" ) ) )
         >>= function
         | Ok (Ok result) ->
             (* call succeeded, result is valid *)
@@ -719,7 +708,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
                   ; _rpc_version
                   ] ) ->
                 Mina_metrics.(Counter.inc_one Network.rpc_connections_failed) ;
-                [%log' info t.config.logger] "Closed connection" ;
+                [%log' error t.config.logger] "Closed connection" ;
                 return @@ Error err
             | _ ->
                 [%log' error t.config.logger] "RPC call failed, reason: $exn"
@@ -850,8 +839,6 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
 
     let on_first_high_connectivity t ~f =
       Deferred.map (Ivar.read t.high_connectivity_ivar) ~f
-
-    let ban_notification_reader t = t.ban_reader
 
     let connection_gating t =
       let%map net2 = !(t.net2) in

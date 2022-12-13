@@ -87,7 +87,6 @@ let should_sync ~root_sync_ledger t candidate_state =
 
 let start_sync_job_with_peer ~sender ~root_sync_ledger
     ({ context = (module Context); _ } as t) peer_best_tip peer_root =
-  let open Context in
   t.best_seen_transition <- peer_best_tip ;
   t.current_root <- peer_root ;
   let blockchain_state =

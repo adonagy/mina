@@ -50,8 +50,6 @@ struct
 
   let logger = Logger.null ()
 
-  let trust_system = Trust_system.null ()
-
   let () =
     Async.Scheduler.set_record_backtraces true ;
     Core.Backtrace.elide := false

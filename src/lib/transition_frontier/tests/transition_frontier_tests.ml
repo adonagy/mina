@@ -36,8 +36,6 @@ let%test_module "Root_history and Transition_frontier" =
 
     let pids = Child_processes.Termination.create_pid_table ()
 
-    let trust_system = Trust_system.null ()
-
     let%test "If a transition does not exists in the transition_frontier or \
               in the root_history, then we should not get an answer" =
       heartbeat_flag := true ;
@@ -192,7 +190,7 @@ let%test_module "Root_history and Transition_frontier" =
             Quickcheck.random_value (Int.gen_incl 1 (2 * max_length))
           in
           let%bind root_history_breadcrumbs =
-            create_breadcrumbs ~logger ~pids 
+            create_breadcrumbs ~logger ~pids
               ~size:num_root_history_breadcrumbs root
           in
           let most_recent_breadcrumb_in_root_history_breadcrumb =

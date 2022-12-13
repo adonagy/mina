@@ -92,10 +92,6 @@ module Rpcs : sig
             ; block_producers :
                 Signature_lib.Public_key.Compressed.Stable.V1.t list
             ; protocol_state_hash : State_hash.Stable.V1.t
-            ; ban_statuses :
-                ( Network_peer.Peer.Stable.V1.t
-                * Trust_system.Peer_status.Stable.V1.t )
-                list
             ; k_block_hashes_and_timestamps :
                 (State_hash.Stable.V1.t * string) list
             ; git_commit : string
@@ -157,7 +153,6 @@ module Config : sig
 
   type t =
     { logger : Logger.t
-    ; trust_system : Trust_system.t
     ; time_controller : Block_time.Controller.t
     ; consensus_constants : Consensus.Constants.t
     ; consensus_local_state : Consensus.Data.Local_state.t
@@ -274,9 +269,6 @@ val connection_gating_config : t -> Mina_net2.connection_gating Deferred.t
 
 val set_connection_gating_config :
   t -> Mina_net2.connection_gating -> Mina_net2.connection_gating Deferred.t
-
-val ban_notification_reader :
-  t -> Gossip_net.ban_notification Linear_pipe.Reader.t
 
 val create :
      Config.t

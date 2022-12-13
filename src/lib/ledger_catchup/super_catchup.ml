@@ -198,83 +198,69 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier
          queried during ledger catchup: $error" ;
       Deferred.Or_error.fail (Error.tag ~tag:"verifier threw an error" error)
   | Error `Invalid_proof ->
-      let%map () =
-        Trust_system.record_envelope_sender trust_system logger sender
-          ( Trust_system.Actions.Gossiped_invalid_transition
-          , Some ("invalid proof", []) )
-      in
+      (* TODO: ban *)
       [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
         "initial_validate: invalid proof" ;
-      Error (Error.of_string "invalid proof")
+      return @@ Error (Error.of_string "invalid proof")
   | Error `Invalid_genesis_protocol_state ->
-      let%map () =
-        Trust_system.record_envelope_sender trust_system logger sender
-          ( Trust_system.Actions.Gossiped_invalid_transition
-          , Some ("invalid genesis protocol state", []) )
-      in
+      (* TODO: ban *)
       [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
         "initial_validate: invalid genesis protocol state" ;
-      Error (Error.of_string "invalid genesis protocol state")
+      return @@ Error (Error.of_string "invalid genesis protocol state")
   | Error `Invalid_delta_block_chain_proof ->
+      (* TODO: ban *)
       [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
         "initial_validate: invalid delta transition chain proof" ;
-      let%map () =
-        Trust_system.record_envelope_sender trust_system logger sender
-          ( Trust_system.Actions.Gossiped_invalid_transition
-          , Some ("invalid delta transition chain witness", []) )
-      in
-      Error (Error.of_string "invalid delta transition chain witness")
+      return @@ Error (Error.of_string "invalid delta transition chain witness")
   | Error `Invalid_protocol_version ->
+      (* TODO: ban *)
+      let transition = Validation.block transition_with_hash in
       [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ( "block_current_protocol_version"
+            , `String
+                ( Header.current_protocol_version (Mina_block.header transition)
+                |> Protocol_version.to_string ) )
+          ; ( "daemon_current_protocol_version"
+            , `String Protocol_version.(get_current () |> to_string) )
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
         "initial_validate: invalid protocol version" ;
-      let transition = Validation.block transition_with_hash in
-      let%map () =
-        Trust_system.record_envelope_sender trust_system logger sender
-          ( Trust_system.Actions.Sent_invalid_protocol_version
-          , Some
-              ( "Invalid current or proposed protocol version in catchup block"
-              , [ ( "current_protocol_version"
-                  , `String
-                      ( Header.current_protocol_version
-                          (Mina_block.header transition)
-                      |> Protocol_version.to_string ) )
-                ; ( "proposed_protocol_version"
-                  , `String
-                      ( Header.proposed_protocol_version_opt
-                          (Mina_block.header transition)
-                      |> Option.value_map ~default:"<None>"
-                           ~f:Protocol_version.to_string ) )
-                ] ) )
-      in
-      Error (Error.of_string "invalid protocol version")
+      return @@ Error (Error.of_string "invalid protocol version")
   | Error `Mismatched_protocol_version ->
-      [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
-        "initial_validate: mismatch protocol version" ;
       let transition = Validation.block transition_with_hash in
-      let%map () =
-        Trust_system.record_envelope_sender trust_system logger sender
-          ( Trust_system.Actions.Sent_mismatched_protocol_version
-          , Some
-              ( "Current protocol version in catchup block does not match \
-                 daemon protocol version"
-              , [ ( "block_current_protocol_version"
-                  , `String
-                      ( Header.current_protocol_version
-                          (Mina_block.header transition)
-                      |> Protocol_version.to_string ) )
-                ; ( "daemon_current_protocol_version"
-                  , `String Protocol_version.(get_current () |> to_string) )
-                ] ) )
-      in
-      Error (Error.of_string "mismatched protocol version")
+      [%log warn]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ( "block_current_protocol_version"
+            , `String
+                ( Header.current_protocol_version (Mina_block.header transition)
+                |> Protocol_version.to_string ) )
+          ; ( "daemon_current_protocol_version"
+            , `String Protocol_version.(get_current () |> to_string) )
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
+        "initial_validate: mismatch protocol version" ;
+      return @@ Error (Error.of_string "mismatched protocol version")
   | Error `Disconnected ->
       [%log warn]
-        ~metadata:[ ("state_hash", state_hash) ]
+        ~metadata:
+          [ ("state_hash", state_hash)
+          ; ("sender", Envelope.Sender.to_yojson sender)
+          ]
         "initial_validate: disconnected chain" ;
       Deferred.Or_error.fail @@ Error.of_string "disconnected chain"
 
@@ -444,16 +430,12 @@ let download_state_hashes t ~logger ~network ~frontier ~target_hash
             Downloader.mark_preferred downloader peer ~now ;
             Deferred.Result.return hs
         | None ->
+            (* TODO: ban *)
             let error_msg =
-              sprintf !"Peer %{sexp:Network_peer.Peer.t} sent us bad proof" peer
+              sprintf !"Peer %{sexp:Peer.t} sent a bad proof" peer
             in
-            let%bind.Deferred () =
-              Trust_system.(
-                record trust_system logger peer
-                  Actions.
-                    ( Sent_invalid_transition_chain_merkle_proof
-                    , Some (error_msg, []) ))
-            in
+            [%log error] "%s" error_msg
+              ~metadata:[ ("peer", Peer.to_yojson peer) ] ;
             Deferred.Result.fail `Invalid_transition_chain_proof
       in
       Deferred.return
@@ -586,21 +568,12 @@ let initial_validate ~context:(module Context : CONTEXT)
     | Ok (Ok tv) ->
         return (Ok { transition with data = tv })
     | Ok (Error invalid) ->
+        (* TODO: ban *)
         let s = "initial_validate: block failed to verify, invalid proof" in
-        [%log warn]
-          ~metadata:[ ("state_hash", state_hash) ]
-          "%s, %s" s
-          (Verifier.invalid_to_string invalid) ;
-        let%map () =
-          match transition.sender with
-          | Local ->
-              Deferred.unit
-          | Remote peer ->
-              Trust_system.(
-                record trust_system logger peer
-                  Actions.(Sent_invalid_proof, None))
-        in
-        Error (`Error (Error.of_string s))
+        [%log warn] "%s, %s" s
+          (Verifier.invalid_to_string invalid)
+          ~metadata:[ ("state_hash", state_hash) ] ;
+        return @@ Error (`Error (Error.of_string s))
     | Error e ->
         [%log warn]
           ~metadata:
@@ -715,7 +688,6 @@ let setup_state_machine_runner ~context:(module Context : CONTEXT) ~t ~verifier
        -> logger:Logger.t
        -> precomputed_values:Precomputed_values.t
        -> verifier:Verifier.t
-       -> trust_system:Trust_system.t
        -> parent:Breadcrumb.t
        -> transition:Mina_block.almost_valid_block
        -> sender:Envelope.Sender.t option
@@ -873,14 +845,6 @@ let setup_state_machine_runner ~context:(module Context : CONTEXT) ~t ~verifier
                     [ ("state_hash", State_hash.to_yojson node.state_hash)
                     ; ("error", `String (Verifier.invalid_to_string err))
                     ] ;
-                ( match iv.sender with
-                | Local ->
-                    ()
-                | Remote peer ->
-                    Trust_system.(
-                      record trust_system logger peer
-                        Actions.(Sent_invalid_proof, None))
-                    |> don't_wait_for ) ;
                 Option.value_map valid_cb ~default:ignore
                   ~f:Mina_net2.Validation_callback.fire_if_not_already_fired
                   `Reject ;
@@ -1351,8 +1315,6 @@ let%test_module "Ledger_catchup tests" =
     let proof_level = precomputed_values.proof_level
 
     let constraint_constants = precomputed_values.constraint_constants
-
-    let trust_system = Trust_system.null ()
 
     (* let time_controller = Block_time.Controller.basic ~logger *)
 

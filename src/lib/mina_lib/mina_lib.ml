@@ -1614,10 +1614,6 @@ let create ?wallets (config : Config.t) =
                         |> Public_key.Compressed.Set.map ~f:snd
                         |> Set.to_list
                       in
-                      let ban_statuses =
-                        Trust_system.Peer_trust.peer_statuses
-                          config.trust_system
-                      in
                       let git_commit = Mina_version.commit_id_short in
                       let uptime_minutes =
                         let now = Time.now () in
@@ -1653,7 +1649,6 @@ let create ?wallets (config : Config.t) =
                         ; peers
                         ; block_producers
                         ; protocol_state_hash
-                        ; ban_statuses
                         ; k_block_hashes_and_timestamps
                         ; git_commit
                         ; uptime_minutes
@@ -2026,22 +2021,6 @@ let create ?wallets (config : Config.t) =
                           [%log' warn config.logger] ~metadata
                             "Not rebroadcasting block $state_hash because it \
                              was received $timing" ) ) ) ;
-          (* FIXME #4093: augment ban_notifications with a Peer.ID so we can implement ban_notify
-             trace_task "ban notification loop" (fun () ->
-              Linear_pipe.iter (Mina_networking.ban_notification_reader net)
-                ~f:(fun notification ->
-                  let open Gossip_net in
-                  let peer = notification.banned_peer in
-                  let banned_until = notification.banned_until in
-                  (* if RPC call fails, will be logged in gossip net code *)
-                  let%map _ =
-                    Mina_networking.ban_notify net peer banned_until
-                  in
-                  () ) ) ; *)
-          don't_wait_for
-            (Linear_pipe.iter
-               (Mina_networking.ban_notification_reader net)
-               ~f:(Fn.const Deferred.unit) ) ;
           let snark_jobs_state =
             Work_selector.State.init
               ~reassignment_wait:config.work_reassignment_wait

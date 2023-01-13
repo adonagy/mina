@@ -129,6 +129,13 @@ let write_graph (_ : t) =
   let _ = G.output_graph in
   ()
 
+let ban_sender ~network = function
+  | Envelope.Sender.Remote peer ->
+      let%bind _ = Mina_networking.ban_peer network peer in
+      Deferred.unit
+  | Local ->
+      Deferred.unit
+
 let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
     ~unprocessed_transition_cache enveloped_transition =
   let open Context in
@@ -204,14 +211,7 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
           ; ("sender", Envelope.Sender.to_yojson sender)
           ]
         "initial_validate: invalid proof" ;
-      let%bind () =
-        match sender with
-        | Remote peer ->
-            let%bind _ = Mina_networking.ban_peer network peer in
-            Deferred.unit
-        | Local ->
-            Deferred.unit
-      in
+      let%bind () = ban_sender ~network sender in
       return @@ Error (Error.of_string "invalid proof")
   | Error `Invalid_genesis_protocol_state ->
       (* TODO: ban *)
@@ -223,16 +223,15 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
         "initial_validate: invalid genesis protocol state" ;
       return @@ Error (Error.of_string "invalid genesis protocol state")
   | Error `Invalid_delta_block_chain_proof ->
-      (* TODO: ban *)
       [%log warn]
         ~metadata:
           [ ("state_hash", state_hash)
           ; ("sender", Envelope.Sender.to_yojson sender)
           ]
         "initial_validate: invalid delta transition chain proof" ;
+      let%bind () = ban_sender ~network sender in
       return @@ Error (Error.of_string "invalid delta transition chain witness")
   | Error `Invalid_protocol_version ->
-      (* TODO: ban *)
       let transition = Validation.block transition_with_hash in
       [%log warn]
         ~metadata:
@@ -246,6 +245,7 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
           ; ("sender", Envelope.Sender.to_yojson sender)
           ]
         "initial_validate: invalid protocol version" ;
+      let%bind () = ban_sender ~network sender in
       return @@ Error (Error.of_string "invalid protocol version")
   | Error `Mismatched_protocol_version ->
       let transition = Validation.block transition_with_hash in
@@ -437,12 +437,12 @@ let download_state_hashes t ~logger ~network ~frontier ~target_hash
             Downloader.mark_preferred downloader peer ~now ;
             Deferred.Result.return hs
         | None ->
-            (* TODO: ban *)
             let error_msg =
               sprintf !"Peer %{sexp:Peer.t} sent a bad proof" peer
             in
             [%log error] "%s" error_msg
               ~metadata:[ ("peer", Peer.to_yojson peer) ] ;
+            let%bind.Deferred () = Mina_networking.ban_peer network peer in
             Deferred.Result.fail `Invalid_transition_chain_proof
       in
       Deferred.return
@@ -575,11 +575,11 @@ let initial_validate ~context:(module Context : CONTEXT)
     | Ok (Ok tv) ->
         return (Ok { transition with data = tv })
     | Ok (Error invalid) ->
-        (* TODO: ban *)
         let s = "initial_validate: block failed to verify, invalid proof" in
         [%log warn] "%s, %s" s
           (Verifier.invalid_to_string invalid)
           ~metadata:[ ("state_hash", state_hash) ] ;
+        let%bind () = ban_sender ~network transition.sender in
         return @@ Error (`Error (Error.of_string s))
     | Error e ->
         [%log warn]

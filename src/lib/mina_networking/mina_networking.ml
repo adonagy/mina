@@ -1066,12 +1066,25 @@ let create (config : Config.t) ~sinks
       incr_failed_response failed_response_counter ) ;
     result
   in
+  (* once we have gossip net, we can ban senders *)
+  let gossip_net_ref = ref None in
+  let ban_sender sender =
+    don't_wait_for
+      ( match sender with
+      | Envelope.Sender.Local ->
+          Deferred.unit
+      | Remote peer -> (
+          match !gossip_net_ref with
+          | None ->
+              Deferred.unit
+          | Some gossip_net ->
+              Gossip_net.Any.ban_peer gossip_net peer ) )
+  in
   let validate_protocol_versions ~rpc_name sender external_transition =
     let { valid_current; valid_next; matches_daemon } =
       protocol_version_status external_transition
     in
-    if not valid_current then
-      (* TODO: ban *)
+    if not valid_current then (
       [%log error] "$rpc_name: block with invalid current protocol version"
         ~metadata:
           [ ("rpc_name", `String rpc_name)
@@ -1082,8 +1095,8 @@ let create (config : Config.t) ~sinks
                       (Mina_block.header external_transition) ) ) )
           ; ("sender", Envelope.Sender.to_yojson sender)
           ] ;
-    if not valid_next then
-      (* TODO: ban *)
+      ban_sender sender ) ;
+    if not valid_next then (
       [%log error] "$rpc_name: block with invalid proposed protocol version"
         ~metadata:
           [ ("rpc_name", `String rpc_name)
@@ -1095,8 +1108,8 @@ let create (config : Config.t) ~sinks
                          (Mina_block.header external_transition) ) ) ) )
           ; ("sender", Envelope.Sender.to_yojson sender)
           ] ;
-    if not matches_daemon then
-      (* TODO: ban *)
+      ban_sender sender ) ;
+    if not matches_daemon then (
       [%log error]
         "$rpc_name: current protocol version in external transition does not \
          match daemon current protocol version"
@@ -1111,6 +1124,7 @@ let create (config : Config.t) ~sinks
             , `String Protocol_version.(to_string @@ get_current ()) )
           ; ("sender", Envelope.Sender.to_yojson sender)
           ] ;
+      ban_sender sender ) ;
     valid_current && valid_next && matches_daemon
   in
   (* each of the passed-in procedures expects an enveloped input, so
@@ -1337,6 +1351,8 @@ let create (config : Config.t) ~sinks
         Gossip_net.Any.create config.creatable_gossip_net rpc_handlers
           (Gossip_net.Message.Any_sinks ((module Sinks), sinks)) )
   in
+  (* tie knot, so we can do bans *)
+  gossip_net_ref := Some gossip_net ;
   (* The node status RPC is implemented directly in go, serving a string which
      is periodically updated. This is so that one can make this RPC on a node even
      if that node is at its connection limit. *)

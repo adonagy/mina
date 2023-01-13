@@ -214,13 +214,13 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
       let%bind () = ban_sender ~network sender in
       return @@ Error (Error.of_string "invalid proof")
   | Error `Invalid_genesis_protocol_state ->
-      (* TODO: ban *)
       [%log warn]
         ~metadata:
           [ ("state_hash", state_hash)
           ; ("sender", Envelope.Sender.to_yojson sender)
           ]
         "initial_validate: invalid genesis protocol state" ;
+      let%bind () = ban_sender ~network sender in
       return @@ Error (Error.of_string "invalid genesis protocol state")
   | Error `Invalid_delta_block_chain_proof ->
       [%log warn]

@@ -346,9 +346,9 @@ let set_connection_gating_config t config =
       Error.tag e ~tag:"Unexpected error doing setGatingConfig" |> Error.raise
 
 let set_banned_peers t (peer_set : Peer.Hash_set.t) =
-  let gating_with_ban =
-    { t.connection_gating with banned_peers = Hash_set.to_list peer_set }
-  in
+  let banned_peers = Hash_set.to_list peer_set in
+  let gating_with_ban = { t.connection_gating with banned_peers } in
+  t.banned_ips <- List.map banned_peers ~f:(fun { host; _ } -> host) ;
   set_connection_gating_config t gating_with_ban
 
 let handle_push_message t push_message =

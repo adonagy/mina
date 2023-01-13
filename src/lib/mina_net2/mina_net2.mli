@@ -376,7 +376,7 @@ val set_connection_gating_config :
 val connection_gating_config : t -> connection_gating
 
 (** Ban a peer *)
-val ban_peer : t -> Peer.t -> connection_gating Deferred.t
+val set_banned_peers : t -> Peer.Hash_set.t -> connection_gating Deferred.t
 
 (** List of currently banned IPs. *)
 val banned_ips : t -> Unix.Inet_addr.t list

@@ -287,7 +287,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
       t.connection_gating := config ;
       Deferred.return config
 
-    let ban_peer t _peer = return !(t.connection_gating)
+    let ban_peer _t _peer = Deferred.unit
   end
 
   type network = Network.t

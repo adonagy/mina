@@ -29,7 +29,7 @@ module Peer_without_id = struct
     { libp2p_port; host = Unix.Inet_addr.to_string host }
 end
 
-(* TODO: connection gating info is currently stored in to places, that needs to be fixed... *)
+(* TODO: connection gating info is currently stored in two places, that needs to be fixed... *)
 type connection_gating =
   { banned_peers : Peer.t list; trusted_peers : Peer.t list; isolate : bool }
 
@@ -345,17 +345,11 @@ let set_connection_gating_config t config =
   | Error e ->
       Error.tag e ~tag:"Unexpected error doing setGatingConfig" |> Error.raise
 
-let ban_peer t peer =
-  (* TODO: how to unban peers? *)
-  if not @@ List.mem t.connection_gating.banned_peers peer ~equal:Peer.equal
-  then
-    let gating_with_ban =
-      { t.connection_gating with
-        banned_peers = peer :: t.connection_gating.banned_peers
-      }
-    in
-    set_connection_gating_config t gating_with_ban
-  else return t.connection_gating
+let set_banned_peers t (peer_set : Peer.Hash_set.t) =
+  let gating_with_ban =
+    { t.connection_gating with banned_peers = Hash_set.to_list peer_set }
+  in
+  set_connection_gating_config t gating_with_ban
 
 let handle_push_message t push_message =
   let open Libp2p_ipc.Reader in

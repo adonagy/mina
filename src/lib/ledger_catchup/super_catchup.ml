@@ -129,7 +129,7 @@ let write_graph (_ : t) =
   let _ = G.output_graph in
   ()
 
-let verify_transition ~context:(module Context : CONTEXT) ~frontier
+let verify_transition ~context:(module Context : CONTEXT) ~frontier ~network
     ~unprocessed_transition_cache enveloped_transition =
   let open Context in
   let sender = Envelope.Incoming.sender enveloped_transition in
@@ -198,13 +198,20 @@ let verify_transition ~context:(module Context : CONTEXT) ~frontier
          queried during ledger catchup: $error" ;
       Deferred.Or_error.fail (Error.tag ~tag:"verifier threw an error" error)
   | Error `Invalid_proof ->
-      (* TODO: ban *)
       [%log warn]
         ~metadata:
           [ ("state_hash", state_hash)
           ; ("sender", Envelope.Sender.to_yojson sender)
           ]
         "initial_validate: invalid proof" ;
+      let%bind () =
+        match sender with
+        | Remote peer ->
+            let%bind _ = Mina_networking.ban_peer network peer in
+            Deferred.unit
+        | Local ->
+            Deferred.unit
+      in
       return @@ Error (Error.of_string "invalid proof")
   | Error `Invalid_genesis_protocol_state ->
       (* TODO: ban *)
@@ -551,7 +558,7 @@ module Verify_work_batcher = struct
 end
 
 let initial_validate ~context:(module Context : CONTEXT)
-    ~(batcher : _ Initial_validate_batcher.t) ~frontier
+    ~(batcher : _ Initial_validate_batcher.t) ~frontier ~network
     ~unprocessed_transition_cache transition =
   let open Context in
   let verification_start_time = Core.Time.now () in
@@ -597,7 +604,7 @@ let initial_validate ~context:(module Context : CONTEXT)
     "initial_validate: verification of proofs complete" ;
   verify_transition
     ~context:(module Context)
-    ~frontier ~unprocessed_transition_cache tv
+    ~frontier ~network ~unprocessed_transition_cache tv
   |> Deferred.map ~f:(Result.map_error ~f:(fun e -> `Error e))
 
 open Frontier_base
@@ -681,7 +688,7 @@ let forest_pick forest =
       assert false )
 
 let setup_state_machine_runner ~context:(module Context : CONTEXT) ~t ~verifier
-    ~downloader ~frontier ~unprocessed_transition_cache
+    ~network ~downloader ~frontier ~unprocessed_transition_cache
     ~catchup_breadcrumbs_writer
     ~(build_func :
           ?skip_staged_ledger_verification:[ `All | `Proofs ]
@@ -788,7 +795,7 @@ let setup_state_machine_runner ~context:(module Context : CONTEXT) ~t ~verifier
           step
             ( initial_validate
                 ~context:(module Context)
-                ~batcher:initial_validation_batcher ~frontier
+                ~batcher:initial_validation_batcher ~frontier ~network
                 ~unprocessed_transition_cache
                 { external_block with
                   data =
@@ -1072,7 +1079,7 @@ let run_catchup ~context:(module Context : CONTEXT) ~verifier ~network ~frontier
         "Catchup states $states") ;
   *)
   let run_state_machine =
-    setup_state_machine_runner ~t ~verifier ~downloader
+    setup_state_machine_runner ~t ~verifier ~downloader ~network
       ~context:(module Context)
       ~frontier ~unprocessed_transition_cache ~catchup_breadcrumbs_writer
       ~build_func

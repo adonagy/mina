@@ -270,6 +270,8 @@ val connection_gating_config : t -> Mina_net2.connection_gating Deferred.t
 val set_connection_gating_config :
   t -> Mina_net2.connection_gating -> Mina_net2.connection_gating Deferred.t
 
+val ban_peer : t -> Peer.t -> Mina_net2.connection_gating Deferred.t
+
 val create :
      Config.t
   -> sinks:Sinks.t

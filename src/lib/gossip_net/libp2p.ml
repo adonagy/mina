@@ -848,6 +848,10 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
       let%bind net2 = !(t.net2) in
       Mina_net2.set_connection_gating_config net2 config
 
+    let ban_peer t peer =
+      let%bind net2 = !(t.net2) in
+      Mina_net2.ban_peer net2 peer
+
     let restart_helper t = t.restart_helper ()
   end
 

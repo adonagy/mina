@@ -345,6 +345,18 @@ let set_connection_gating_config t config =
   | Error e ->
       Error.tag e ~tag:"Unexpected error doing setGatingConfig" |> Error.raise
 
+let ban_peer t peer =
+  (* TODO: how to unban peers? *)
+  if not @@ List.mem t.connection_gating.banned_peers peer ~equal:Peer.equal
+  then
+    let gating_with_ban =
+      { t.connection_gating with
+        banned_peers = peer :: t.connection_gating.banned_peers
+      }
+    in
+    set_connection_gating_config t gating_with_ban
+  else return t.connection_gating
+
 let handle_push_message t push_message =
   let open Libp2p_ipc.Reader in
   let open DaemonInterface in

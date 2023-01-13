@@ -1417,6 +1417,8 @@ include struct
 
   let set_connection_gating_config t config =
     lift set_connection_gating t config
+
+  let ban_peer t peer = lift ban_peer t peer
 end
 
 (* TODO: Have better pushback behavior *)

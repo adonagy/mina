@@ -6,6 +6,8 @@ open Mina_block
 module type CONTEXT = sig
   val logger : Logger.t
 
+  val network : Mina_networking.t
+
   val precomputed_values : Precomputed_values.t
 
   val constraint_constants : Genesis_constants.Constraint_constants.t
@@ -13,7 +15,7 @@ module type CONTEXT = sig
   val consensus_constants : Consensus.Constants.t
 end
 
-let run ~context:(module Context : CONTEXT) ~verifier ~network ~time_controller
+let run ~context:(module Context : CONTEXT) ~verifier ~time_controller
     ~collected_transitions ~frontier ~network_transition_reader
     ~producer_transition_reader ~clear_reader =
   let open Context in

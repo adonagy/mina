@@ -6,7 +6,9 @@ open Network_peer
 open Mina_numbers
 
 module type CONTEXT = sig
-  val logger : Logger.t
+  val logger : Logger.t p
+
+  val networking : Mina_networking.t
 
   val precomputed_values : Precomputed_values.t
 
@@ -70,7 +72,7 @@ let is_transition_for_bootstrap ~context:(module Context : CONTEXT) frontier
           ~existing:root_consensus_state ~candidate:new_consensus_state
 
 let start_transition_frontier_controller ~context:(module Context : CONTEXT)
-    ~verifier ~network ~time_controller ~producer_transition_reader_ref
+    ~verifier ~time_controller ~producer_transition_reader_ref
     ~producer_transition_writer_ref ~verified_transition_writer ~clear_reader
     ~collected_transitions ~transition_reader_ref ~transition_writer_ref
     ~frontier_w frontier =
@@ -102,7 +104,7 @@ let start_transition_frontier_controller ~context:(module Context : CONTEXT)
   let new_verified_transition_reader =
     Transition_frontier_controller.run
       ~context:(module Context)
-      ~verifier ~network ~time_controller ~collected_transitions ~frontier
+      ~verifier ~time_controller ~collected_transitions ~frontier
       ~network_transition_reader:!transition_reader_ref
       ~producer_transition_reader ~clear_reader
   in
@@ -156,7 +158,7 @@ let start_bootstrap_controller ~context:(module Context : CONTEXT) ~verifier
       Strict_pipe.Writer.kill !transition_writer_ref ;
       start_transition_frontier_controller
         ~context:(module Context)
-        ~verifier ~network ~time_controller ~producer_transition_reader_ref
+        ~verifier ~time_controller ~producer_transition_reader_ref
         ~producer_transition_writer_ref ~verified_transition_writer
         ~clear_reader ~collected_transitions ~transition_reader_ref
         ~transition_writer_ref ~frontier_w new_frontier )
@@ -441,7 +443,7 @@ let initialize ~context:(module Context : CONTEXT) ~sync_local_state ~network
           let collected_transitions = Option.to_list best_tip in
           start_transition_frontier_controller
             ~context:(module Context)
-            ~verifier ~network ~time_controller ~producer_transition_reader_ref
+            ~verifier ~time_controller ~producer_transition_reader_ref
             ~producer_transition_writer_ref ~verified_transition_writer
             ~clear_reader ~collected_transitions ~transition_reader_ref
             ~transition_writer_ref ~frontier_w frontier )

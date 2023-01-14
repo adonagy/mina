@@ -108,7 +108,6 @@ let validate_gossip_base ~fn my_peer_id envelope validation_callback =
 
 let on_gossip_decode_failure (config : Config.t) envelope (err : Error.t) =
   let peer = Envelope.Incoming.sender envelope |> Envelope.Sender.remote_exn in
-  (* TODO: ban *)
   [%log' error config.logger] "Failed to decode gossip message"
     ~metadata:
       [ ("sender_peer_id", `String peer.peer_id)
@@ -381,7 +380,7 @@ module Make (Rpc_intf : Network_peer.Rpc_intf.Rpc_interface_intf) :
                 ~handle_and_validate_incoming_message:
                   (validate_gossip_base ~fn my_peer_id)
                 ~bin_prot
-                ~on_decode_failure:(`Call (on_gossip_decode_failure config))
+                ~on_decode_failure:(`Call (on_gossip_decode_failure net2 config))
             in
             let tx_bin_prot =
               Network_pool.Transaction_pool.Diff_versioned.Stable.Latest.bin_t

@@ -11,9 +11,9 @@ def pipeline():
         'trigger': trigger_on_branch('release/2.0.0-drone'),
         'steps': [
             clone_mina_step('release/2.0.0'),
-            build_docker('build-deps', './dockerfiles/stages/1-build-deps'),
-            build_docker('opam-deps', './dockerfiles/stages/2-opam-deps', build_args=['MINA_BRANCH=release/2.0.0']),
-            publish_docker('mina',  './dockerfiles/stages/3-builder', build_args=['MINA_BRANCH=release/2.0.0']),
+            # build_docker('build-deps', './dockerfiles/stages/1-build-deps'),
+            # build_docker('opam-deps', './dockerfiles/stages/2-opam-deps', build_args=['MINA_BRANCH=release/2.0.0']),
+            publish_docker('mina',  './dockerfiles/stages/merged', build_args=['MINA_BRANCH=release/2.0.0']),
         ],
         'clone': disable_clone(),
     }
@@ -30,6 +30,7 @@ def clone_mina_step(branch):
         'commands': [
             'git clone https://github.com/MinaProtocol/mina.git .',
             'git checkout ' + branch,
+            'cat ./dockerfiles/stages/1-build-deps ./dockerfiles/stages/2-opam-deps ./dockerfiles/stages/3-builder > ./dockerfiles/stages/merged',
         ]
     }
 

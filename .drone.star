@@ -10,25 +10,56 @@ def pipeline():
         'name': 'publish-docker-image',
         'trigger': trigger_on_branch('release/2.0.0-drone'),
         'steps': [
-            publish_docker(),
+            clone_mina_step('release/2.0.0'),
+            build_docker('stage-1', './dockerfiles/stages/1-build-deps'),
+            build_docker('stage-2', './dockerfiles/stages/2-opam-deps', build_args=['MINA_BRANCH=release/2.0.0']),
+            publish_docker('publish',  './dockerfiles/stages/3-builder', build_args=['MINA_BRANCH=release/2.0.0']),
         ],
+        'clone': disable_clone(),
     }
 
-def publish_docker():
+def disable_clone():
     return {
-        'name': 'publish',
+        'disable': True,
+    }
+
+def clone_mina_step(branch):
+    return {
+        'name': 'clone',
+        'image': 'alpine/git',
+        'commands': [
+            'git clone https://github.com/MinaProtocol/mina.git .',
+            'git checkout ' + branch,
+        ]
+    }
+
+def build_docker(name, dockerfile, build_args=[]):
+    return {
+        'name': name,
+        'image': 'plugins/docker',
+        'settings': {
+            'dockerfile': dockerfile,
+            'dry_run': True,
+            'build_args': build_args,
+        },
+    }
+
+def publish_docker(name, dockerfile, build_args=[]):
+    return {
+        'name': name,
         'image': 'plugins/docker',
         'settings': {
             'repo': 'adonagy/mina',
             'tags': ['cluster-daily'],
-            'dockerfile': 'dockerfiles/Dockerfile-mina-daemon',
+            'dockerfile': dockerfile,
             'username': {
                 'from_secret': 'docker_hub_username',
             },
             'password': {
                 'from_secret': 'docker_hub_password'
             },
-            'dry_run': 'true',
+            'dry_run': True,
+            'build_args': build_args,
         },
     }
 

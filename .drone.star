@@ -51,7 +51,7 @@ def publish_docker(name, dockerfile, build_args=[]):
         'name': 'publish' + name,
         'image': 'plugins/docker',
         'settings': {
-            'repo': 'adonagy/mina',
+            'repo': 'adrnagy/mina',
             'tags': ['cluster-daily'],
             'dockerfile': dockerfile,
             'username': {

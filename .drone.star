@@ -60,7 +60,6 @@ def publish_docker(name, dockerfile, build_args=[]):
             'password': {
                 'from_secret': 'docker_hub_password'
             },
-            'dry_run': True,
             'build_args': build_args,
         },
     }
